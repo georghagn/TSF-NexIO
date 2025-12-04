@@ -1,3 +1,10 @@
+"
+I am the central WebSocket server for the TsfNexIO framework. I handle raw connections, manage the heartbeat, and maintain the UserRegistry. Usage: server := TsfNexIOServer new. server delegate: MyApplication new. server startOn: 8080.
+
+I only care about the network, not the logic. Logic is the job of delegate (Pure Smalltalk Object)
+
+
+"
 Class {
 	#name : 'TsfNexIOServer',
 	#superclass : 'Object',
@@ -119,7 +126,7 @@ TsfNexIOServer >> processRequest: json session: session [
 
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> pruneDeadConnections [
 	
 	clientsMutex critical: [
@@ -157,7 +164,7 @@ TsfNexIOServer >> readAndDispatch: webSocket session: session [
     ] on: ConnectionClosed, PrimitiveFailed do: [ :ex | ex return ].
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> registerUser: username on: webSocket [
 
 	clientsMutex critical: [
@@ -188,7 +195,7 @@ TsfNexIOServer >> send: method params: params toUser: username [
 
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> startHeartbeat [
 
 	self stopHeartbeat. "Sicherstellen, dass er nicht doppelt läuft"
@@ -225,7 +232,7 @@ TsfNexIOServer >> stop [
 	server ifNotNil: [ server stop ].
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> stopHeartbeat [
 
 	heartbeatProcess ifNotNil: [ 
@@ -235,7 +242,7 @@ TsfNexIOServer >> stopHeartbeat [
 	].
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> unregisterUser: username [
 
 	username ifNil: [ ^ self ].

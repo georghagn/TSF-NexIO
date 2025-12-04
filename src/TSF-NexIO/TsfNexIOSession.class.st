@@ -1,3 +1,6 @@
+"
+I am a session object
+"
 Class {
 	#name : 'TsfNexIOSession',
 	#superclass : 'Object',

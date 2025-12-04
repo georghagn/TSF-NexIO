@@ -1,3 +1,14 @@
+"
+I am the central WebSocket client for the TsfNexIO framework. I send messegase synchron and listen on notification
+
+
+Example:
+```
+| result params |
+params := {'text' -> 'Hello'} asDictionary.
+result := client sendSynchronous: 'echo' params: params.
+```
+"
 Class {
 	#name : 'TsfNexIOClient',
 	#superclass : 'Object',
@@ -6,7 +17,8 @@ Class {
 		'pendingRequests',
 		'requestCounter',
 		'notificationHandler',
-		'mutex'
+		'mutex',
+		'logger'
 	],
 	#pools : [
 		'TsfNexIOConstants'
@@ -25,12 +37,17 @@ TsfNexIOClient >> close [
 { #category : 'public - line' }
 TsfNexIOClient >> connectTo: urlString [
 
-    webSocket := ZnWebSocket to: urlString.
-    pendingRequests := Dictionary new.
-    requestCounter := 0.
-    mutex := Mutex new.
+	webSocket := ZnWebSocket to: urlString.
+
+	"Wir greifen auf den unterliegenden SocketStream zu"
+	"Der SocketStream kennt 'timeout:', das standardmäßig für Reads gilt."
+	webSocket socket timeout: 60.
+
+	pendingRequests := Dictionary new.
+	requestCounter := 0.
+	mutex := Mutex new.
     
-    [ self listenLoop ] forkAt: Processor userBackgroundPriority named: 'TsfNexIOListener'.
+	[ self listenLoop ] forkAt: Processor userBackgroundPriority named: 'TsfNexIOListener'.
 ]
 
 { #category : 'error handling' }
@@ -64,8 +81,28 @@ TsfNexIOClient >> listenLoop [
 				ifNotNil: [ self handleResponse: json id: id ]
 				ifNil:    [ self handleNotification: json ].
 
-		] on: ConnectionClosed, PrimitiveFailed do: [ :ex | ^ self ]
+		] on: ConnectionClosed, PrimitiveFailed do: [ :ex | 
+			self logInfo: 'Verbindung verloren: ', ex description.
+			^ self 
+		]
 	].
+]
+
+{ #category : 'error handling' }
+TsfNexIOClient >> logError: aString [
+
+    logger 
+        ifNotNil: [ logger error: '[TsfNexClient] ', aString ]
+        ifNil: [ Transcript show: '[TsfNexIO ERROR] '; show: aString; cr ]
+]
+
+{ #category : 'accessing' }
+TsfNexIOClient >> logInfo: aString [
+    "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
+
+    logger 
+        ifNotNil: [ logger info: '[TsfNexIOClient] ', aString ]
+        ifNil: [ Transcript show: '[TsfNexIOSClient] ' ; show: aString; cr ]
 ]
 
 { #category : 'accessing' }

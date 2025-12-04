@@ -1,3 +1,6 @@
+"
+I am a SharedPool and register errorCode to String representation
+"
 Class {
 	#name : 'TsfNexIOConstants',
 	#superclass : 'SharedPool',
@@ -30,6 +33,6 @@ TsfNexIOConstants class >> initialize [
 	ServerErrorMax  := -32099.
 
 	"Einmalig ausführen, um die Variablen zu füllen:"
-	TsfNexIOConstants initialize.
+	"TsfNexIOConstants initialize."
 	
 ]

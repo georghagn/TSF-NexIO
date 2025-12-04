@@ -1,3 +1,6 @@
+"
+I handle Json RPC Errors-Messages
+"
 Class {
 	#name : 'TsfNexIOError',
 	#superclass : 'Error',
@@ -9,6 +12,12 @@ Class {
 	#package : 'TSF-NexIO',
 	#tag : 'Core'
 }
+
+{ #category : 'accessing' }
+TsfNexIOError >> code [
+
+	^code
+]
 
 { #category : 'accessing' }
 TsfNexIOError >> code: anInteger [

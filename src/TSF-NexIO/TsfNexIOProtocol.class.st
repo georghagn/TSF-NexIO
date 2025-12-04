@@ -1,3 +1,6 @@
+"
+I define the Json RPC Messages . I have only class methods
+"
 Class {
 	#name : 'TsfNexIOProtocol',
 	#superclass : 'Object',

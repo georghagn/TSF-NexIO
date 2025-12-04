@@ -1,3 +1,6 @@
+"
+I am a Demo / Test App. for usage: see Tests
+"
 Class {
 	#name : 'TsfNexIOTestApp',
 	#superclass : 'Object',
