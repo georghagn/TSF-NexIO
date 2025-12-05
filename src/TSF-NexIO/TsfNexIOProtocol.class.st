@@ -12,24 +12,40 @@ Class {
 	#tag : 'Core'
 }
 
+{ #category : 'as yet unclassified' }
+TsfNexIOProtocol class >> createError: errorDef data: data id: id [
+
+	^ self createError: errorDef message: nil data: data id: id.
+]
+
 { #category : 'class initialization' }
-TsfNexIOProtocol class >> createError: code message: message data: data id: id [
-    | errorDict |
+TsfNexIOProtocol class >> createError: errorDefOrCode message: msgStringOrNil data: data id: id [
+    | code message errorDict |
+    (errorDefOrCode isKindOf: TsfNexIOErrorDef)
+        ifTrue: [ 
+            code := errorDefOrCode code.
+            message := msgStringOrNil ifNil: [ errorDefOrCode message ].
+        ]
+        ifFalse: [ 
+            code := errorDefOrCode.
+            message := msgStringOrNil.
+        ].
 
     errorDict := { 'code' -> code. 'message' -> message } asDictionary.
     data ifNotNil: [ errorDict at: 'data' put: data ].
     
-    ^ NeoJSONWriter toString: {
+    ^ {
         'jsonrpc' -> '2.0'.
         'error' -> errorDict.
         'id' -> id
     } asDictionary.
+
 ]
 
 { #category : 'class initialization' }
 TsfNexIOProtocol class >> createNotification: method params: params [
 
-    ^ NeoJSONWriter toString: {
+    ^ {
         'jsonrpc' -> '2.0'.
         'method' -> method.
         'params' -> params.
@@ -39,7 +55,7 @@ TsfNexIOProtocol class >> createNotification: method params: params [
 { #category : 'class initialization' }
 TsfNexIOProtocol class >> createRequest: method params: params id: id [
 
-    ^ NeoJSONWriter toString: {
+    ^ {
         'jsonrpc' -> '2.0'.
         'method' -> method.
         'params' -> params.
@@ -50,7 +66,7 @@ TsfNexIOProtocol class >> createRequest: method params: params id: id [
 { #category : 'class initialization' }
 TsfNexIOProtocol class >> createResponse: result id: id [
 
-    ^ NeoJSONWriter toString: {
+    ^ {
         'jsonrpc' -> '2.0'.
         'result' -> result.
         'id' -> id

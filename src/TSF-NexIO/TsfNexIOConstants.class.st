@@ -4,34 +4,41 @@ I am a SharedPool and register errorCode to String representation
 Class {
 	#name : 'TsfNexIOConstants',
 	#superclass : 'SharedPool',
+	#classVars : [
+		'InternalError',
+		'InvalidParams',
+		'InvalidRequest',
+		'MethodNotFound',
+		'ParseError'
+	],
 	#classInstVars : [
 		'ParseError',
 		'InvalidRequest',
 		'MethodNotFound',
 		'InvalidParams',
-		'InternalError',
-		'ServerErrorMin',
-		'ServerErrorMax'
+		'InternalError'
 	],
 	#category : 'TSF-NexIO-Core',
 	#package : 'TSF-NexIO',
 	#tag : 'Core'
 }
 
+{ #category : 'accessing' }
+TsfNexIOConstants class >> MethodNotFound [
+
+	^ MethodNotFound
+]
+
 { #category : 'class initialization' }
 TsfNexIOConstants class >> initialize [
 	"Standard JSON-RPC 2.0 Errors"
 
-	ParseError      := -32700. "Invalid JSON was received by the server."
-	InvalidRequest  := -32600. "The JSON sent is not a valid Request object."
-	MethodNotFound  := -32601. "The method does not exist / is not available."
-	InvalidParams   := -32602. "Invalid method parameter(s)."
-	InternalError   := -32603. "Internal JSON-RPC error."
-
-	"Reserved for implementation-defined server-errors"
-	ServerErrorMin  := -32000.
-	ServerErrorMax  := -32099.
-
+    ParseError      := TsfNexIOErrorDef code: -32700 message: 'Parse error'.
+    InvalidRequest  := TsfNexIOErrorDef code: -32600 message: 'Invalid Request'.
+    MethodNotFound  := TsfNexIOErrorDef code: -32601 message: 'Method not found'.
+    InvalidParams   := TsfNexIOErrorDef code: -32602 message: 'Invalid params'.
+    InternalError   := TsfNexIOErrorDef code: -32603 message: 'Internal error'.
+	
 	"Einmalig ausführen, um die Variablen zu füllen:"
 	"TsfNexIOConstants initialize."
 	

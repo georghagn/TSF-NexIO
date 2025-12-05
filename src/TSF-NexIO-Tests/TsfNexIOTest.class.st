@@ -16,34 +16,24 @@ Class {
 
 { #category : 'running' }
 TsfNexIOTest >> setUp [
-
-    super setUp.
-    
-    "1. Zufälligen Port wählen um Konflikte zu vermeiden"
     port := 40000 + 100 atRandom.
-    
-    "2. Mock App vorbereiten"
     app := TsfNexIOTestApp new.
-    
-    "3. Server starten"
-    server := TsfNexIOServer new.
-    server delegate: app.
-    server startOn: port.
-    
-    "4. Client starten"
-    client := TsfNexIOClient new.
-    client connectTo: 'ws://localhost:', port asString, '/ws'.
-    
-    "Kurz warten bis Verbindung steht"
+    server := TsfNexIOServer new. server delegate: app. server startOn: port.
+    client := TsfNexIOClient new. client connectTo: 'ws://localhost:', port asString, '/ws'.
     (Delay forMilliseconds: 100) wait.
 ]
 
 { #category : 'running' }
 TsfNexIOTest >> tearDown [
-
-    "Wichtig: Alles sauber beenden, sonst bleiben Ports belegt!"
+    "WICHTIG: Erst Client töten, damit der Listener Ruhe gibt"
     client ifNotNil: [ client close ].
+    
+    "Kurz atmen lassen, damit der Prozess sterben kann"
+    (Delay forMilliseconds: 10) wait.
+    
+    "Dann Server aus"
     server ifNotNil: [ server stop ].
+    
     super tearDown.
 ]
 
@@ -61,6 +51,15 @@ TsfNexIOTest >> testApplicationError [
 ]
 
 { #category : 'tests' }
+TsfNexIOTest >> testBatch [
+    | requests results |
+    requests := { 'echo' -> {'txt'->'A'} asDictionary. 'echo' -> {'txt'->'B'} asDictionary }.
+    results := client sendBatch: requests.
+    self assert: results size equals: 2.
+    self assert: ((results first at: 'result') at: 'txt') equals: 'A'.
+]
+
+{ #category : 'tests' }
 TsfNexIOTest >> testLoginAndState [
     client sendSynchronous: 'login' params: {'user' -> 'Tester'} asDictionary.
     
@@ -74,13 +73,12 @@ TsfNexIOTest >> testLoginAndState [
 
 { #category : 'tests' }
 TsfNexIOTest >> testMethodNotFound [
-    "Erwartet: Fehlercode -32601"
-
     self 
-        should: [ client sendSynchronous: 'gibtEsNicht' params: {} asDictionary ]
+        should: [ client sendSynchronous: 'gibtsNicht' params: {} asDictionary ]
         raise: TsfNexIOError
         withExceptionDo: [ :ex | 
-            self assert: ex code equals: -32601.
+            "Wir nutzen deine Klassenmethode"
+            self assert: ex code equals: TsfNexIOConstants MethodNotFound code.
             self assert: (ex messageText includesSubstring: 'Method not found').
         ].
 ]

@@ -45,30 +45,36 @@ TsfNexIOServer >> delegate: anObject [
 
 { #category : 'actions' }
 TsfNexIOServer >> handleConnection: webSocket [
-	| session |
-
-	session := TsfNexIOSession new.
-	session socket: webSocket.
+    | session |
+    session := TsfNexIOSession new.
+    session socket: webSocket.
     
-	"WICHTIG: Wir geben der App Zugriff auf den Socket via State"
-	session at: '__socket__' put: webSocket.
-
-	clientsMutex critical: [ clients add: webSocket ].
-
-	[
-		[ webSocket isConnected ] whileTrue: [
-			self readAndDispatch: webSocket session: session.
-		]
-	] ensure: [ 
-		"Cleanup: Wenn der Socket stirbt, User aus Registry entfernen"
-		clientsMutex critical: [ 
-		clients remove: webSocket ifAbsent: [].
-		"Falls ein User eingeloggt war, entfernen wir ihn"
-		self unregisterUser: (session user).
-		].
-	
-		self logInfo: 'Client disconnected'.
-	].
+    clientsMutex critical: [ clients add: webSocket ].
+    
+    [
+        "Der Loop läuft solange die Verbindung steht"
+        [ webSocket isConnected ] whileTrue: [
+            
+            [
+                "Hier knallt es, wenn der Test endet (tearDown)"
+                self readAndDispatch: webSocket session: session.
+                
+            ] on: ConnectionClosed, PrimitiveFailed do: [ :ex |
+                "Das ist normal: Client ist weg."
+                self logInfo: 'Server: Client disconnected (', ex description, ')'.
+                
+                "Ganz wichtig: ^self beendet die Methode und springt ins ensure:"
+                ^ self. 
+            ]
+        ]
+    ] ensure: [ 
+        "Cleanup läuft hier sicher weiter"
+        clientsMutex critical: [ 
+            clients remove: webSocket ifAbsent: [].
+            self unregisterUser: session user.
+        ].
+        self logInfo: 'Server: Cleanup complete.'.
+    ].
 
 ]
 
@@ -86,42 +92,64 @@ TsfNexIOServer >> initialize [
 { #category : 'error handling' }
 TsfNexIOServer >> logError: aString [
 
-    logger 
-        ifNotNil: [ logger error: '[TsfNexIO] ', aString ]
-        ifNil: [ Transcript show: '[TsfNexIO ERROR] '; show: aString; cr ]
+    logger ifNotNil: [ 
+		logger error: '[TsfNexIO] ', aString 
+	] ifNil: [ 
+		Transcript show: '[TsfNexIO ERROR] '; show: aString; cr 
+	]
 ]
 
 { #category : 'accessing' }
 TsfNexIOServer >> logInfo: aString [
     "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
 
-    logger 
-        ifNotNil: [ logger info: '[TsfNexIOServer] ', aString ]
-        ifNil: [ Transcript show: '[TsfNexIOServer] ' ; show: aString; cr ]
+	logger ifNotNil: [ 
+		logger info: '[TsfNexIOServer] ', aString 
+	] ifNil: [ 
+		Transcript show: '[TsfNexIOServer] ' ; show: aString; cr 
+	]
+]
+
+{ #category : 'as yet unclassified' }
+TsfNexIOServer >> processBatch: batchArray session: session [
+    | responses |
+    batchArray isEmpty ifTrue: [
+        ^ TsfNexIOProtocol createError: InvalidRequest data: 'Empty Batch' id: nil
+    ].
+    responses := OrderedCollection new.
+    batchArray do: [ :req |
+        | resp |
+        resp := self processRequest: req session: session.
+        resp ifNotNil: [ responses add: resp ].
+    ].
+    responses isEmpty ifTrue: [ ^ nil ].
+    ^ responses asArray.
 ]
 
 { #category : 'actions' }
 TsfNexIOServer >> processRequest: json session: session [
     | method params id selector result |
+    (json isDictionary and: [ json includesKey: 'method' ]) ifFalse: [
+         ^ TsfNexIOProtocol createError: InvalidRequest data: json id: nil
+    ].
 
     method := json at: 'method'.
     params := json at: 'params' ifAbsent: [ Dictionary new ].
-    id := json at: 'id'.
-    
-    "Hier passiert die Magie: method 'login' -> #rpcLogin:state:"
+    id := json at: 'id' ifAbsent: [ nil ].
     selector := ('rpc', method capitalized, ':session:') asSymbol.
     
     [
         (delegate respondsTo: selector) ifFalse: [
-             ^ TsfNexIOProtocol createError: -32601 message: 'Method not found' data: method id: id
+             id ifNil: [ ^ nil ].
+             ^ TsfNexIOProtocol createError: (TsfNexIOConstants MethodNotFound) data: method id: id
         ].
-        
         result := delegate perform: selector with: params with: session.
+        id ifNil: [ ^ nil ].
         ^ TsfNexIOProtocol createResponse: result id: id.
 
     ] on: Error do: [ :ex |
-        self logError: 'App Error: ', ex description.
-        ^ TsfNexIOProtocol createError: -32603 message: ex messageText data: nil id: id.
+        id ifNil: [ ^ nil ].
+        ^ TsfNexIOProtocol createError: InternalError message: ex messageText data: nil id: id.
     ].
 
 ]
@@ -131,7 +159,7 @@ TsfNexIOServer >> pruneDeadConnections [
 	
 	clientsMutex critical: [
 		"WICHTIG: Wir iterieren über eine Kopie, da wir das Original 
-			potenziell verändern (wenn connections sterben)"
+		potenziell verändern (wenn connections sterben)"
 		clients copy do: [ :ws |
 			[
 				ws ping. "Sendet WebSocket Opcode 9"
@@ -146,22 +174,20 @@ TsfNexIOServer >> pruneDeadConnections [
 
 { #category : 'actions' }
 TsfNexIOServer >> readAndDispatch: webSocket session: session [
-    | message json response |
+    | message json responseObj |
+    message := webSocket readMessage.
+    message ifNil: [ ConnectionClosed signal ]. "Safety Check"
+    
+    json := NeoJSONReader fromString: message.
+    
+    json isArray 
+        ifTrue: [ responseObj := self processBatch: json session: session ]
+        ifFalse: [ responseObj := self processRequest: json session: session ].
+    
+    responseObj ifNotNil: [ 
+        webSocket sendMessage: (NeoJSONWriter toString: responseObj) 
+    ].
 
-    [
-        message := webSocket readMessage.
-        json := NeoJSONReader fromString: message.
-        
-        (json includesKey: 'id') 
-            ifTrue: [ 
-                response := self processRequest: json session: session.
-                webSocket sendMessage: response. 
-            ]
-            ifFalse: [ 
-                "Notification handling could go here" 
-            ].
-
-    ] on: ConnectionClosed, PrimitiveFailed do: [ :ex | ex return ].
 ]
 
 { #category : 'actions' }
@@ -215,14 +241,11 @@ TsfNexIOServer >> startHeartbeat [
 { #category : 'public' }
 TsfNexIOServer >> startOn: port [
 
-	server := ZnServer startDefaultOn: port.
-   	server delegate map: 'ws' to: (ZnWebSocketDelegate handler: [ :webSocket |
-		self handleConnection: webSocket
-	]).
-
-	self startHeartbeat.
-
-	self logInfo: 'NexIO Server started on port ', port asString.
+    server := ZnServer startDefaultOn: port.
+    server delegate map: 'ws' to: (ZnWebSocketDelegate handler: [ :ws |
+        self handleConnection: ws
+    ]).
+    self startHeartbeat.
 ]
 
 { #category : 'accessing' }
