@@ -4,15 +4,12 @@ I define the Json RPC Messages . I have only class methods
 Class {
 	#name : 'TsfNexIOProtocol',
 	#superclass : 'Object',
-	#pools : [
-		'TsfNexIOConstants'
-	],
 	#category : 'TSF-NexIO-Core',
 	#package : 'TSF-NexIO',
 	#tag : 'Core'
 }
 
-{ #category : 'as yet unclassified' }
+{ #category : 'error handling' }
 TsfNexIOProtocol class >> createError: errorDef data: data id: id [
 
 	^ self createError: errorDef message: nil data: data id: id.
@@ -35,7 +32,7 @@ TsfNexIOProtocol class >> createError: errorDefOrCode message: msgStringOrNil da
     data ifNotNil: [ errorDict at: 'data' put: data ].
     
     ^ {
-        'jsonrpc' -> '2.0'.
+        'jsonrpc' -> self rpcVersion.
         'error' -> errorDict.
         'id' -> id
     } asDictionary.
@@ -46,7 +43,7 @@ TsfNexIOProtocol class >> createError: errorDefOrCode message: msgStringOrNil da
 TsfNexIOProtocol class >> createNotification: method params: params [
 
     ^ {
-        'jsonrpc' -> '2.0'.
+        'jsonrpc' -> self rpcVersion.
         'method' -> method.
         'params' -> params.
     } asDictionary.
@@ -56,7 +53,7 @@ TsfNexIOProtocol class >> createNotification: method params: params [
 TsfNexIOProtocol class >> createRequest: method params: params id: id [
 
     ^ {
-        'jsonrpc' -> '2.0'.
+        'jsonrpc' -> self rpcVersion.
         'method' -> method.
         'params' -> params.
         'id' -> id
@@ -67,9 +64,15 @@ TsfNexIOProtocol class >> createRequest: method params: params id: id [
 TsfNexIOProtocol class >> createResponse: result id: id [
 
     ^ {
-        'jsonrpc' -> '2.0'.
+        'jsonrpc' -> self rpcVersion.
         'result' -> result.
         'id' -> id
     } asDictionary.
 
+]
+
+{ #category : 'defaults' }
+TsfNexIOProtocol class >> rpcVersion [ 
+
+	^ '2.0'
 ]

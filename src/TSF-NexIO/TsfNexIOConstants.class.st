@@ -1,16 +1,9 @@
 "
-I am a SharedPool and register errorCode to String representation
+I handle RPC 2.0 Error Codes
 "
 Class {
 	#name : 'TsfNexIOConstants',
-	#superclass : 'SharedPool',
-	#classVars : [
-		'InternalError',
-		'InvalidParams',
-		'InvalidRequest',
-		'MethodNotFound',
-		'ParseError'
-	],
+	#superclass : 'Object',
 	#classInstVars : [
 		'ParseError',
 		'InvalidRequest',
@@ -23,23 +16,53 @@ Class {
 	#tag : 'Core'
 }
 
-{ #category : 'accessing' }
-TsfNexIOConstants class >> MethodNotFound [
+{ #category : 'class initialization' }
+TsfNexIOConstants class >> internalError [
 
-	^ MethodNotFound
+    ^ InternalError ifNil: [ 
+        InternalError := TsfNexIOErrorDef code: -32603 message: 'Internal error' 
+    ].
 ]
 
 { #category : 'class initialization' }
-TsfNexIOConstants class >> initialize [
-	"Standard JSON-RPC 2.0 Errors"
+TsfNexIOConstants class >> invalidParams [
 
-    ParseError      := TsfNexIOErrorDef code: -32700 message: 'Parse error'.
-    InvalidRequest  := TsfNexIOErrorDef code: -32600 message: 'Invalid Request'.
-    MethodNotFound  := TsfNexIOErrorDef code: -32601 message: 'Method not found'.
-    InvalidParams   := TsfNexIOErrorDef code: -32602 message: 'Invalid params'.
-    InternalError   := TsfNexIOErrorDef code: -32603 message: 'Internal error'.
-	
-	"Einmalig ausführen, um die Variablen zu füllen:"
-	"TsfNexIOConstants initialize."
-	
+    ^ InvalidParams ifNil: [ 
+        InvalidParams := TsfNexIOErrorDef code: -32602 message: 'Invalid params' 
+    ].
+]
+
+{ #category : 'class initialization' }
+TsfNexIOConstants class >> invalidRequest [
+
+    ^ InvalidRequest ifNil: [ 
+        InvalidRequest := TsfNexIOErrorDef code: -32600 message: 'Invalid Request' 
+    ].
+]
+
+{ #category : 'class initialization' }
+TsfNexIOConstants class >> methodNotFound [
+
+    ^ MethodNotFound ifNil: [ 
+        MethodNotFound := TsfNexIOErrorDef code: -32601 message: 'Method not found' 
+    ].
+]
+
+{ #category : 'parsing' }
+TsfNexIOConstants class >> parseError [
+
+    "Lazy Initialization: Wenn nil, erzeuge neu."
+    ^ ParseError ifNil: [ 
+        ParseError := TsfNexIOErrorDef code: -32700 message: 'Parse error' 
+    ].
+]
+
+{ #category : 'initialization' }
+TsfNexIOConstants class >> reset [
+
+    ParseError := nil.
+    InvalidRequest := nil.
+    MethodNotFound := nil.
+    InvalidParams := nil.
+    InternalError := nil.
 ]

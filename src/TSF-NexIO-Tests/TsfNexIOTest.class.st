@@ -8,7 +8,7 @@ Class {
 		'port'
 	],
 	#pools : [
-		'TsfNexIOConstants'
+		'AnObsoleteTsfNexIOConstants'
 	],
 	#category : 'TSF-NexIO-Tests',
 	#package : 'TSF-NexIO-Tests'
@@ -16,11 +16,14 @@ Class {
 
 { #category : 'running' }
 TsfNexIOTest >> setUp [
+
+
     port := 40000 + 100 atRandom.
     app := TsfNexIOTestApp new.
     server := TsfNexIOServer new. server delegate: app. server startOn: port.
     client := TsfNexIOClient new. client connectTo: 'ws://localhost:', port asString, '/ws'.
     (Delay forMilliseconds: 100) wait.
+
 ]
 
 { #category : 'running' }
@@ -45,7 +48,7 @@ TsfNexIOTest >> testApplicationError [
         should: [ client sendSynchronous: 'crash' params: {} asDictionary ]
         raise: TsfNexIOError
         withExceptionDo: [ :ex | 
-            self assert: ex code equals: -32603. "Internal Error"
+            self assert: ex code equals: TsfNexIOConstants internalError code.
             self assert: (ex messageText includesSubstring: 'Boom').
         ].
 ]
@@ -61,6 +64,8 @@ TsfNexIOTest >> testBatch [
 
 { #category : 'tests' }
 TsfNexIOTest >> testLoginAndState [
+
+    client connectTo: 'ws://localhost:', port asString, '/ws'.
     client sendSynchronous: 'login' params: {'user' -> 'Tester'} asDictionary.
     
     "Der Mock merkt sich die Session im lastReceivedState"
@@ -78,7 +83,7 @@ TsfNexIOTest >> testMethodNotFound [
         raise: TsfNexIOError
         withExceptionDo: [ :ex | 
             "Wir nutzen deine Klassenmethode"
-            self assert: ex code equals: TsfNexIOConstants MethodNotFound code.
+            self assert: ex code equals: TsfNexIOConstants methodNotFound code.
             self assert: (ex messageText includesSubstring: 'Method not found').
         ].
 ]

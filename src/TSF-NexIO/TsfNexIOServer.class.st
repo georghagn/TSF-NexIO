@@ -1,8 +1,29 @@
 "
-I am the central WebSocket server for the TsfNexIO framework. I handle raw connections, manage the heartbeat, and maintain the UserRegistry. Usage: server := TsfNexIOServer new. server delegate: MyApplication new. server startOn: 8080.
+I am the core server for the TsfNexIO JSON-RPC framework.
+I manage the WebSocket lifecycle, maintain active client sessions, and route incoming requests to a delegate.
 
-I only care about the network, not the logic. Logic is the job of delegate (Pure Smalltalk Object)
+*Responsibilities*
+- **Lifecycle:** I start and stop the underlying Zinc HTTP/WebSocket server.
+- **Session Management:** I keep track of connected clients in `sessions` and authenticated users in `userRegistry`.
+- **Heartbeat:** I run a background process to ping clients and detect timeouts.
+- **Dispatching:** I receive raw JSON, parse it, and delegate the logic to my `delegate`.
 
+*Collaborators*
+- `ZnWebSocket`: Handles the low-level connection.
+- `TsfNexIOSession`: Represents a connected client.
+- `TsfNexIOConstants`: Provides protocol constants.
+
+*Public API*
+- `startOn: aPort` - Starts the server on the given port.
+- `stop` - Stops the server and disconnects all clients.
+- `delegate:` - Sets the object responsible for handling actual RPC methods.
+
+*Example*
+```
+server := TsfNexIOServer new.
+server delegate: MyChatApp new.
+server startOn: 9090.
+```
 
 "
 Class {
@@ -15,15 +36,36 @@ Class {
 		'delegate',
 		'logger',
 		'userRegistry',
-		'heartbeatProcess'
-	],
-	#pools : [
-		'TsfNexIOConstants'
+		'heartbeatProcess',
+		'heartbeatInterval',
+		'waitTimeout',
+		'port'
 	],
 	#category : 'TSF-NexIO-Server',
 	#package : 'TSF-NexIO',
 	#tag : 'Server'
 }
+
+{ #category : 'defaults' }
+TsfNexIOServer class >> defaultHeartbeatInterval [
+
+    "Server sends a ping every 30 seconds"
+    ^ 30
+]
+
+{ #category : 'defaults' }
+TsfNexIOServer class >> defaultPort [
+
+    "Default port if none is specified"
+    ^ 9090
+]
+
+{ #category : 'defaults' }
+TsfNexIOServer class >> defaultWaitTimeout [
+
+    "If no pong received within 60 seconds, connection is considered dead"
+    ^ 60 seconds
+]
 
 { #category : 'actions' }
 TsfNexIOServer >> broadcast: method params: params [
@@ -46,6 +88,7 @@ TsfNexIOServer >> delegate: anObject [
 { #category : 'actions' }
 TsfNexIOServer >> handleConnection: webSocket [
     | session |
+
     session := TsfNexIOSession new.
     session socket: webSocket.
     
@@ -54,11 +97,9 @@ TsfNexIOServer >> handleConnection: webSocket [
     [
         "Der Loop läuft solange die Verbindung steht"
         [ webSocket isConnected ] whileTrue: [
-            
             [
                 "Hier knallt es, wenn der Test endet (tearDown)"
                 self readAndDispatch: webSocket session: session.
-                
             ] on: ConnectionClosed, PrimitiveFailed do: [ :ex |
                 "Das ist normal: Client ist weg."
                 self logInfo: 'Server: Client disconnected (', ex description, ')'.
@@ -85,7 +126,18 @@ TsfNexIOServer >> initialize [
 	
 	clients := Set new.
 	clientsMutex := Mutex new.
-	userRegistry := Dictionary new. "Neu: Das Telefonbuch"
+	userRegistry := Dictionary new.
+	
+"  sessions := Set new."
+    
+    "Thread-Safety: WebSockets laufen in eigenen Prozessen. 
+     Ein Monitor (Mutex) schützt unsere Listen vor ConcurrentModificationExceptions."
+"    sessionsMonitor := Monitor new. "
+    
+    "Lade Defaults"
+    port := self class defaultPort .
+    heartbeatInterval := self class defaultHeartbeatInterval.
+    waitTimeout := self class defaultWaitTimeout.
 
 ]
 
@@ -110,11 +162,12 @@ TsfNexIOServer >> logInfo: aString [
 	]
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'actions' }
 TsfNexIOServer >> processBatch: batchArray session: session [
     | responses |
+
     batchArray isEmpty ifTrue: [
-        ^ TsfNexIOProtocol createError: InvalidRequest data: 'Empty Batch' id: nil
+        ^ TsfNexIOProtocol createError: TsfNexIOConstants invalidRequest data: 'Empty Batch' id: nil
     ].
     responses := OrderedCollection new.
     batchArray do: [ :req |
@@ -129,8 +182,9 @@ TsfNexIOServer >> processBatch: batchArray session: session [
 { #category : 'actions' }
 TsfNexIOServer >> processRequest: json session: session [
     | method params id selector result |
+
     (json isDictionary and: [ json includesKey: 'method' ]) ifFalse: [
-         ^ TsfNexIOProtocol createError: InvalidRequest data: json id: nil
+         ^ TsfNexIOProtocol createError: TsfNexIOConstants invalidRequest data: json id: nil
     ].
 
     method := json at: 'method'.
@@ -141,7 +195,7 @@ TsfNexIOServer >> processRequest: json session: session [
     [
         (delegate respondsTo: selector) ifFalse: [
              id ifNil: [ ^ nil ].
-             ^ TsfNexIOProtocol createError: (TsfNexIOConstants MethodNotFound) data: method id: id
+             ^ TsfNexIOProtocol createError: (TsfNexIOConstants methodNotFound) data: method id: id
         ].
         result := delegate perform: selector with: params with: session.
         id ifNil: [ ^ nil ].
@@ -149,7 +203,7 @@ TsfNexIOServer >> processRequest: json session: session [
 
     ] on: Error do: [ :ex |
         id ifNil: [ ^ nil ].
-        ^ TsfNexIOProtocol createError: InternalError message: ex messageText data: nil id: id.
+        ^ TsfNexIOProtocol createError: TsfNexIOConstants internalError message: ex messageText data: nil id: id.
     ].
 
 ]
@@ -174,20 +228,17 @@ TsfNexIOServer >> pruneDeadConnections [
 
 { #category : 'actions' }
 TsfNexIOServer >> readAndDispatch: webSocket session: session [
-    | message json responseObj |
-    message := webSocket readMessage.
-    message ifNil: [ ConnectionClosed signal ]. "Safety Check"
-    
-    json := NeoJSONReader fromString: message.
-    
-    json isArray 
-        ifTrue: [ responseObj := self processBatch: json session: session ]
-        ifFalse: [ responseObj := self processRequest: json session: session ].
-    
-    responseObj ifNotNil: [ 
-        webSocket sendMessage: (NeoJSONWriter toString: responseObj) 
-    ].
+	| message json responseObj |
 
+	message := webSocket readMessage.
+	message ifNil: [ ConnectionClosed signal ]. "Safety Check"
+
+	json := NeoJSONReader fromString: message.
+	responseObj := json isArray
+		ifTrue: [ self processBatch: json session: session ]
+		ifFalse: [ self processRequest: json session: session ].
+
+	responseObj ifNotNil: [ webSocket sendMessage: (NeoJSONWriter toString: responseObj) ]
 ]
 
 { #category : 'actions' }
@@ -221,6 +272,18 @@ TsfNexIOServer >> send: method params: params toUser: username [
 
 ]
 
+{ #category : 'public' }
+TsfNexIOServer >> start [
+
+    port ifNil: [port := self class defaultPort ].
+
+    server := ZnServer startDefaultOn: port.
+    server delegate map: 'ws' to: (ZnWebSocketDelegate handler: [ :ws |
+        self handleConnection: ws
+    ]).
+    self startHeartbeat.
+]
+
 { #category : 'actions' }
 TsfNexIOServer >> startHeartbeat [
 
@@ -228,7 +291,7 @@ TsfNexIOServer >> startHeartbeat [
 
 	heartbeatProcess := [
 		[
-			(Delay forSeconds: 30) wait.
+			(Delay forSeconds: heartbeatInterval) wait.
 			self pruneDeadConnections.
 		] repeat.
 	] forkAt: Processor systemBackgroundPriority named: 'TsfNexIOHeartbeat'.
@@ -239,13 +302,18 @@ TsfNexIOServer >> startHeartbeat [
 ]
 
 { #category : 'public' }
-TsfNexIOServer >> startOn: port [
+TsfNexIOServer >> startOn: aPort [
 
+    self stop. "Sicherstellen, dass nichts Altes läuft"
+
+    port := aPort.
     server := ZnServer startDefaultOn: port.
     server delegate map: 'ws' to: (ZnWebSocketDelegate handler: [ :ws |
         self handleConnection: ws
     ]).
     self startHeartbeat.
+
+    self logInfo: 'Server started on port ', port asString.
 ]
 
 { #category : 'accessing' }

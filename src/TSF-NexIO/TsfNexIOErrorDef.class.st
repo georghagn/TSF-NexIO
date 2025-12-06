@@ -1,3 +1,6 @@
+"
+I am an ErrorCode Object
+"
 Class {
 	#name : 'TsfNexIOErrorDef',
 	#superclass : 'Object',
