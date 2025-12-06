@@ -16,7 +16,7 @@ BaselineOfTsfNexIO >> baseline: spec [
 	].
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'baselines - dependencies' }
 BaselineOfTsfNexIO >> defineDependencies: spec [ 
 
 	spec baseline: 'ZincHTTPComponents' with: [ 
@@ -34,7 +34,7 @@ BaselineOfTsfNexIO >> defineDependencies: spec [
 
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'baseline - groups' }
 BaselineOfTsfNexIO >> defineGroups: spec [
 
 	spec 
@@ -44,7 +44,7 @@ BaselineOfTsfNexIO >> defineGroups: spec [
 		
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'baseline - packages' }
 BaselineOfTsfNexIO >> definePackages: spec [
 
 	spec 
