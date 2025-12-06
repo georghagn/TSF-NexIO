@@ -79,12 +79,12 @@ TsfNexIOIntegrationTest >> testClientTimeout [
     client connectTo: 'ws://localhost:', port asString, '/ws'.
     
     "Wir setzen Timeout sehr kurz (0.5s)"
-    client requestTimeout: 500 milliSeconds.
+    client requestTimeout: 0.5.
     
     "Der Server wartet bei 'test.slow' 2 Sekunden -> Timeout muss feuern"
     self should: [ 
         client sendSynchronous: 'slow' params: Dictionary new 
-    ] raise: TsfNexIOTimeoutError description: 'test.slow'.
+    ] raise: TsfNexIOTimeoutError description: 'slow'.
 
 ]
 
@@ -98,7 +98,7 @@ TsfNexIOIntegrationTest >> testMethodNotFound [
         on: TsfNexIOError
         do: [ :ex |
             "Wir erwarten den Code für MethodNotFound (meist -32601)"
-            self assert: ex code equals: TsfNexIOConstants methodNotFound.
+            self assert: ex code equals: TsfNexIOConstants methodNotFound code.
             ^ self "Erfolg"
         ].
     self fail: 'Sollte TsfNexIOError werfen'
@@ -122,4 +122,28 @@ TsfNexIOIntegrationTest >> testSynchronousEcho [
 	"Prüfung: Wurde die Session im Delegate gesetzt?"
     self assert: (server delegate lastReceivedSession) notNil.
     self assert: (server delegate lastReceivedSession) socket isConnected
+]
+
+{ #category : 'tests' }
+TsfNexIOIntegrationTest >> testTimeout [
+    "Testet, ob der Timeout-Fehler geworfen wird UND ob er die Methode nennt"
+    
+    client connectTo: 'ws://localhost:', port asString, '/ws'.
+    
+    "Timeout extrem kurz setzen z.B. 0.5 sekunden"
+    client requestTimeout: 0.5.
+    
+    self 
+        should: [ 
+            "Wir rufen 'slow' auf, was im Delegate 2s dauert"
+            client sendSynchronous: 'slow' params: Dictionary new 
+        ] 
+        raise: TsfNexIOTimeoutError 
+        withExceptionDo: [ :ex | 
+            "Hier prüfen wir das Innenleben der Exception"
+            self assert: (ex messageText includesSubstring: 'slow').
+            
+            "Optional: Prüfen ob params leer waren, wie gesendet"
+            self assert: ex params isEmpty.
+        ].
 ]

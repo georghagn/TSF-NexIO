@@ -3,7 +3,7 @@ Class {
 	#superclass : 'Error',
 	#instVars : [
 		'method',
-		'requestParams'
+		'params'
 	],
 	#category : 'TSF-NexIO-Core',
 	#package : 'TSF-NexIO',
@@ -11,10 +11,10 @@ Class {
 }
 
 { #category : 'signalling' }
-TsfNexIOTimeoutError class >> signalForMethod: aMethod params: aParams [
+TsfNexIOTimeoutError class >> signalForMethod: aMethod params: aDict [
 
     ^ self new
-        method: aMethod params: aParams;
+        method: aMethod params: aDict;
         signal
 ]
 
@@ -22,12 +22,20 @@ TsfNexIOTimeoutError class >> signalForMethod: aMethod params: aParams [
 TsfNexIOTimeoutError >> messageText [
     "Pharo nutzt dies für den Debugger-Titel"
 
-    ^ 'Timeout waiting for request: ', method asString
+	^ method 
+        ifNotNil: [ 'Timeout waiting for request: ', method asString ]
+        ifNil: [ super messageText ifNil: ['Unknown Timeout'] ]
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'error handling' }
 TsfNexIOTimeoutError >> method: aString params: aDictionary [
 
     method := aString.
-    requestParams := aDictionary.
+    params := aDictionary.
+]
+
+{ #category : 'accessing' }
+TsfNexIOTimeoutError >> params [
+
+	^ params
 ]

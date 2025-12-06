@@ -78,6 +78,13 @@ TsfNexIOServer >> broadcast: method params: params [
 ]
 
 { #category : 'accessing' }
+TsfNexIOServer >> delegate [
+
+    ^ delegate
+
+]
+
+{ #category : 'accessing' }
 TsfNexIOServer >> delegate: anObject [
 
     delegate := anObject.
