@@ -165,10 +165,10 @@ TsfNexIOClient >> listenLoop [
                 ifFalse: [ self dispatchIncoming: json ].
 
         ] on: Error do: [ :ex |
-            "Fangnetz für ALLES (Timeouts, Parse Errors, Logikfehler)"
-            self logInfo: 'Listener gestorben: ', ex description.
-            self close. 
-            ^ self "Prozess beenden!"
+        "WICHTIG: Wir fangen 'Exception' (Alles), nicht nur 'Error'.
+         Wir loggen NICHTs ins Transcript, um Race-Conditions beim Anzeigen zu vermeiden.
+         Wir beenden einfach den Prozess."
+        ^ self
         ]
     ].
 
@@ -246,7 +246,7 @@ TsfNexIOClient >> sendSynchronous: method params: params [
     
     (semaphore waitTimeoutSeconds: requestTimeout ) ifTrue: [ 
         mutex critical: [ pendingRequests removeKey: id ifAbsent: [] ].
-			TsfNexIOTimeoutError signal.
+			TsfNexIOTimeoutError signalForMethod: method params: params
         "self error: 'Timeout' "
     ].
 

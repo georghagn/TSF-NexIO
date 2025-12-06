@@ -73,22 +73,6 @@ TsfNexIOIntegrationTest >> testClientErrorHandling [
 ]
 
 { #category : 'tests' }
-TsfNexIOIntegrationTest >> testClientTimeout [
-    "Prüft den Timeout Mechanismus im Client"
-    
-    client connectTo: 'ws://localhost:', port asString, '/ws'.
-    
-    "Wir setzen Timeout sehr kurz (0.5s)"
-    client requestTimeout: 0.5.
-    
-    "Der Server wartet bei 'test.slow' 2 Sekunden -> Timeout muss feuern"
-    self should: [ 
-        client sendSynchronous: 'slow' params: Dictionary new 
-    ] raise: TsfNexIOTimeoutError description: 'slow'.
-
-]
-
-{ #category : 'tests' }
 TsfNexIOIntegrationTest >> testMethodNotFound [
     "Testet den Fall, wenn der Server die Methode nicht kennt"
     
@@ -131,15 +115,13 @@ TsfNexIOIntegrationTest >> testTimeout [
     client connectTo: 'ws://localhost:', port asString, '/ws'.
     
     "Timeout extrem kurz setzen z.B. 0.5 sekunden"
-    client requestTimeout: 0.5.
+    client requestTimeout: 1.
     
     self 
         should: [ 
             "Wir rufen 'slow' auf, was im Delegate 2s dauert"
             client sendSynchronous: 'slow' params: Dictionary new 
-        ] 
-        raise: TsfNexIOTimeoutError 
-        withExceptionDo: [ :ex | 
+        ] raise: TsfNexIOTimeoutError withExceptionDo: [ :ex | 
             "Hier prüfen wir das Innenleben der Exception"
             self assert: (ex messageText includesSubstring: 'slow').
             

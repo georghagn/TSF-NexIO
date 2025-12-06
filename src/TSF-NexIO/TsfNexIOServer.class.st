@@ -132,7 +132,7 @@ TsfNexIOServer >> initialize [
 	super initialize.
 	
 	clients := Set new.
-	clientsMutex := Mutex new.
+	clientsMutex := Monitor new.
 	userRegistry := Dictionary new.
 	
 "  sessions := Set new."
@@ -219,33 +219,54 @@ TsfNexIOServer >> processRequest: json session: session [
 TsfNexIOServer >> pruneDeadConnections [
 	
 	clientsMutex critical: [
-		"WICHTIG: Wir iterieren über eine Kopie, da wir das Original 
-		potenziell verändern (wenn connections sterben)"
-		clients copy do: [ :ws |
+		clients copy do: [ :client |  "Copy verwenden, um Modifikationen während der Iteration zu vermeiden"
 			[
-				ws ping. "Sendet WebSocket Opcode 9"
+				(client isNotNil and: [ client isConnected ]) ifTrue: [ 
+					client ping.
+				] ifFalse: [
+					"Aufräumen, wenn wir merken, dass er tot ist"
+					self unregisterUser: client.
+				]
 			] on: Error do: [ :ex |
+				 "Heartbeat fehlgeschlagen -> Session ist vermutlich weg"
 				self logInfo: 'Heartbeat: Found dead connection. Closing...'.
-				ws close. "Das triggert das Cleanup im anderen Prozess"
+				self unregisterUser: client.
+				client close.
 			]
-		]
-	].
+		].
+	]
+
 
 ]
 
 { #category : 'actions' }
 TsfNexIOServer >> readAndDispatch: webSocket session: session [
-	| message json responseObj |
 
-	message := webSocket readMessage.
-	message ifNil: [ ConnectionClosed signal ]. "Safety Check"
+    [ webSocket isConnected ] whileTrue: [
+        | message responseObj json |
+        
+        message := webSocket readMessage.
+        message ifNil: [ ^ self ]. "Socket closed by peer"
+        
+        json := NeoJSONReader fromString: message.
+        responseObj := json isArray
+            ifTrue: [ self processBatch: json session: session ]
+            ifFalse: [ self processRequest: json session: session ].
+		
+        "Antwort Senden - MIT Panic-Room"
+        responseObj ifNotNil: [
+            "Erst prüfen, dann senden. Das reduziert den Fehler drastisch."
+            (webSocket isNotNil and: [ webSocket isConnected ]) ifTrue: [
+                [
+                    webSocket sendMessage: (NeoJSONWriter toString: responseObj)
+                ] on: Error do: [ :ex | 
+                    "Ignorieren. Der Client ist weg." 
+                    ^ self 
+                ]
+            ]
+        ].
+    ].
 
-	json := NeoJSONReader fromString: message.
-	responseObj := json isArray
-		ifTrue: [ self processBatch: json session: session ]
-		ifFalse: [ self processRequest: json session: session ].
-
-	responseObj ifNotNil: [ webSocket sendMessage: (NeoJSONWriter toString: responseObj) ]
 ]
 
 { #category : 'actions' }
@@ -336,7 +357,7 @@ TsfNexIOServer >> stopHeartbeat [
 	heartbeatProcess ifNotNil: [ 
 		heartbeatProcess terminate. 
 		heartbeatProcess := nil.
-		self logInfo: 'Heartbeat stopped.'.
+		"self logInfo: 'Heartbeat stopped.'."
 	].
 ]
 

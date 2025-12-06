@@ -58,6 +58,6 @@ TsfNexIOTestDelegate >> rpcErrorTrigger: params session: aSession [
 TsfNexIOTestDelegate >> rpcSlow: params session: aSession [
     "Korrespondiert zu JSON method: 'slow'"
     
-    (Delay forSeconds: 2) wait.
+    (Delay forSeconds: 3) wait.
     ^ 'done'
 ]
