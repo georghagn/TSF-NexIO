@@ -7,9 +7,6 @@ Class {
 		'app',
 		'port'
 	],
-	#pools : [
-		'AnObsoleteTsfNexIOConstants'
-	],
 	#category : 'TSF-NexIO-Tests',
 	#package : 'TSF-NexIO-Tests'
 }
