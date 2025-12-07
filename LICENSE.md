@@ -1,3 +1,6 @@
+# Apache License 2.0
+
+```
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -28,9 +31,9 @@
       source, and configuration files.
 
       "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
+      transformation or translation of a Source form, including but not
+      limited to compiled object code, generated documentation, and
+      conversions to other media types.
 
       "Work" shall mean the work of authorship, whether in Source or
       Object form, made available under the License, as indicated by a
@@ -120,20 +123,10 @@
           that such additional attribution notices cannot be construed
           as modifying the License.
 
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
    5. Submission of Contributions. Unless You explicitly state otherwise,
       any Contribution intentionally submitted for inclusion in the Work
       by You to the Licensor shall be under the terms and conditions of
       this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
 
    6. Trademarks. This License does not grant permission to use the trade
       names, trademarks, service marks, or product names of the Licensor,
@@ -199,3 +192,4 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+```
