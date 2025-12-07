@@ -18,6 +18,7 @@ TsfNexIOProtocol class >> createError: errorDef data: data id: id [
 { #category : 'class initialization' }
 TsfNexIOProtocol class >> createError: errorDefOrCode message: msgStringOrNil data: data id: id [
     | code message errorDict |
+
     (errorDefOrCode isKindOf: TsfNexIOErrorDef)
         ifTrue: [ 
             code := errorDefOrCode code.

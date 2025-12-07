@@ -27,7 +27,7 @@ TsfNexIOTestApp >> rpcCrash: params session: session [
 { #category : 'as yet unclassified' }
 TsfNexIOTestApp >> rpcEcho: params session: session [
 
-	lastReceivedSession := session. "Wir merken uns die Session für Assertions"
+	lastReceivedSession := session. 
 	^ params.
 ]
 
@@ -43,8 +43,8 @@ TsfNexIOTestApp >> rpcLogin: params session: session [
 TsfNexIOTestApp >> rpcWhisper: params session: session [
     | recipient text |
     
-    "Check: Darf er überhaupt flüstern?"
-    session isAuthenticated ifFalse: [ Error signal: 'Du musst eingeloggt sein!' ].
+    "Check: Is it allowed to whisper?"
+    session isAuthenticated ifFalse: [ Error signal: 'You must be logged in!' ].
     
     recipient := params at: 'to'.
     text := params at: 'text'.

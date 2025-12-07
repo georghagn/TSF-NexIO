@@ -31,9 +31,9 @@ Class {
 	#superclass : 'Object',
 	#instVars : [
 		'server',
-		'clients',
-		'clientsMutex',
 		'delegate',
+		'sessions',
+		'sessionsMutex',
 		'logger',
 		'userRegistry',
 		'heartbeatProcess',
@@ -72,8 +72,8 @@ TsfNexIOServer >> broadcast: method params: params [
     | json |
 
     json := TsfNexIOProtocol createNotification: method params: params.
-    clientsMutex critical: [
-        clients do: [ :ws | [ ws sendMessage: json ] on: Error do: [ nil ] ]
+    sessionsMutex critical: [
+        sessions do: [ :ws | [ ws sendMessage: json ] on: Error do: [ nil ] ]
     ].
 ]
 
@@ -88,6 +88,7 @@ TsfNexIOServer >> delegate [
 TsfNexIOServer >> delegate: anObject [
 
     delegate := anObject.
+
     "Dependency Injection: The App must know the server for broadcasts"
     (delegate respondsTo: #server:) ifTrue: [ delegate server: self ].
 ]
@@ -96,11 +97,18 @@ TsfNexIOServer >> delegate: anObject [
 TsfNexIOServer >> handleConnection: webSocket [
     | session |
 
+    ". Session Objekt erstellen"
     session := TsfNexIOSession new.
     session socket: webSocket.
     
-    clientsMutex critical: [ clients add: webSocket ].
-    
+    "2. Session registrieren (Thread-Safe)"
+    sessionsMutex critical: [ 
+        sessions add: session 
+    ].
+
+    "clientsMutex critical: [ clients add: webSocket ]."
+
+    "3. Loop starten - mit Ensure Block für Cleanup"
     [
         "Der Loop läuft solange die Verbindung steht"
         [ webSocket isConnected ] whileTrue: [
@@ -116,10 +124,11 @@ TsfNexIOServer >> handleConnection: webSocket [
             ]
         ]
     ] ensure: [ 
-        "Cleanup läuft hier sicher weiter"
-        clientsMutex critical: [ 
-            clients remove: webSocket ifAbsent: [].
-            self unregisterUser: session user.
+        "4. Cleanup: Egal warum der Loop endet (Fehler, Close, Timeout),
+         wir entfernen die Session aus der Liste."
+        sessionsMutex critical: [ 
+            sessions remove: session ifAbsent: [].
+           " self unregisterUser: session user."
         ].
         self logInfo: 'Server: Cleanup complete.'.
     ].
@@ -130,17 +139,12 @@ TsfNexIOServer >> handleConnection: webSocket [
 TsfNexIOServer >> initialize [
 
 	super initialize.
-	
-	clients := Set new.
-	clientsMutex := Monitor new.
+
+	sessions := Set new.
+	sessionsMutex := Monitor new.
+
 	userRegistry := Dictionary new.
 	
-"  sessions := Set new."
-    
-    "Thread-Safety: WebSockets laufen in eigenen Prozessen. 
-     Ein Monitor (Mutex) schützt unsere Listen vor ConcurrentModificationExceptions."
-"    sessionsMonitor := Monitor new. "
-    
     "Lade Defaults"
     port := self class defaultPort .
     heartbeatInterval := self class defaultHeartbeatInterval.
@@ -160,7 +164,7 @@ TsfNexIOServer >> logError: aString [
 
 { #category : 'accessing' }
 TsfNexIOServer >> logInfo: aString [
-    "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
+    "Do we have a logger? If so, use it. If not, use a transcript.."
 
 	logger ifNotNil: [ 
 		logger info: '[TsfNexIOServer] ', aString 
@@ -197,7 +201,17 @@ TsfNexIOServer >> processRequest: json session: session [
     method := json at: 'method'.
     params := json at: 'params' ifAbsent: [ Dictionary new ].
     id := json at: 'id' ifAbsent: [ nil ].
-    selector := ('rpc', method capitalized, ':session:') asSymbol.
+    "selector := ('rpc', method capitalized, ':session:') asSymbol."
+
+    "We dynamically assemble the selector to remove points.n"
+    "Example: 'auth.login' -> 'rpc' + 'Auth' + 'Login' + ':session:'"
+    selector := (String streamContents: [ :stream |
+        stream nextPutAll: 'rpc'.
+        (method findTokens: '.') do: [ :part | 
+            stream nextPutAll: part capitalized 
+        ].
+        stream nextPutAll: ':session:'
+    ]) asSymbol.
     
     [
         (delegate respondsTo: selector) ifFalse: [
@@ -218,20 +232,21 @@ TsfNexIOServer >> processRequest: json session: session [
 { #category : 'actions' }
 TsfNexIOServer >> pruneDeadConnections [
 	
-	clientsMutex critical: [
-		clients copy do: [ :client |  "Copy verwenden, um Modifikationen während der Iteration zu vermeiden"
+	sessionsMutex critical: [
+		sessions copy do: [ :session |  "Copy verwenden, um Modifikationen während der Iteration zu vermeiden"
 			[
-				(client isNotNil and: [ client isConnected ]) ifTrue: [ 
-					client ping.
+				(session isNotNil and: [ session isConnected ]) ifTrue: [ 
+					session socket ping.
 				] ifFalse: [
 					"Aufräumen, wenn wir merken, dass er tot ist"
-					self unregisterUser: client.
+					"Triggert das ensure:"
+					session socket close.
 				]
 			] on: Error do: [ :ex |
-				 "Heartbeat fehlgeschlagen -> Session ist vermutlich weg"
+				 "Heartbeat failure -> session is probably gone"
 				self logInfo: 'Heartbeat: Found dead connection. Closing...'.
-				self unregisterUser: client.
-				client close.
+				"self unregisterUser: session."
+				session socket close.
 			]
 		].
 	]
@@ -253,14 +268,14 @@ TsfNexIOServer >> readAndDispatch: webSocket session: session [
             ifTrue: [ self processBatch: json session: session ]
             ifFalse: [ self processRequest: json session: session ].
 		
-        "Antwort Senden - MIT Panic-Room"
+        "send answer - MIT Panic-Room"
         responseObj ifNotNil: [
-            "Erst prüfen, dann senden. Das reduziert den Fehler drastisch."
+            "First check, then send. This drastically reduces the error."
             (webSocket isNotNil and: [ webSocket isConnected ]) ifTrue: [
                 [
                     webSocket sendMessage: (NeoJSONWriter toString: responseObj)
                 ] on: Error do: [ :ex | 
-                    "Ignorieren. Der Client ist weg." 
+                    "Ignore. Client is gone." 
                     ^ self 
                 ]
             ]
@@ -272,7 +287,7 @@ TsfNexIOServer >> readAndDispatch: webSocket session: session [
 { #category : 'actions' }
 TsfNexIOServer >> registerUser: username on: webSocket [
 
-	clientsMutex critical: [
+	sessionsMutex critical: [
 		userRegistry at: username put: webSocket.
 		self logInfo: 'Registered user: ', username.
 	].
@@ -284,7 +299,7 @@ TsfNexIOServer >> registerUser: username on: webSocket [
 TsfNexIOServer >> send: method params: params toUser: username [
 	| socket json |
 
-	clientsMutex critical: [
+	sessionsMutex critical: [
 		socket := userRegistry at: username ifAbsent: [ 
 			self logInfo: 'User not found: ', username. 
 			^ self 
@@ -298,6 +313,12 @@ TsfNexIOServer >> send: method params: params toUser: username [
 		self unregisterUser: username. 
 	].
 
+]
+
+{ #category : 'accessing' }
+TsfNexIOServer >> sessions [
+
+    ^ sessions
 ]
 
 { #category : 'public' }
@@ -315,7 +336,7 @@ TsfNexIOServer >> start [
 { #category : 'actions' }
 TsfNexIOServer >> startHeartbeat [
 
-	self stopHeartbeat. "Sicherstellen, dass er nicht doppelt läuft"
+	self stopHeartbeat. "Make sure it's not running twice."
 
 	heartbeatProcess := [
 		[
@@ -332,7 +353,7 @@ TsfNexIOServer >> startHeartbeat [
 { #category : 'public' }
 TsfNexIOServer >> startOn: aPort [
 
-    self stop. "Sicherstellen, dass nichts Altes läuft"
+    self stop. "Make sure it's not running twice."
 
     port := aPort.
     server := ZnServer startDefaultOn: port.
@@ -365,9 +386,15 @@ TsfNexIOServer >> stopHeartbeat [
 TsfNexIOServer >> unregisterUser: username [
 
 	username ifNil: [ ^ self ].
-	clientsMutex critical: [
+	sessionsMutex critical: [
 		userRegistry removeKey: username ifAbsent: [].
 		self logInfo: 'Unregistered user: ', username.
 	].
 
+]
+
+{ #category : 'accessing' }
+TsfNexIOServer >> userRegistry [
+
+	^ userRegistry 
 ]

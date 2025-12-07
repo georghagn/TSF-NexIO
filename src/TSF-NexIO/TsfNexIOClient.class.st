@@ -102,8 +102,7 @@ TsfNexIOClient >> connectTo: urlString [
 TsfNexIOClient >> dispatchIncoming: json [
     | id |
 
-    "Hier knallte es früher, wenn json nil war"
-    "TODO: id koennte auch Json 'null' sein! sollte abgefangen werden"
+    "TODO: The id could also be JSON 'null'! It should be intercepted."
     id := json at: 'id' ifAbsent: [ nil ].
     id 
         ifNotNil: [ self handleResponse: json id: id ]
@@ -141,22 +140,22 @@ TsfNexIOClient >> initialize [
 { #category : 'request handling' }
 TsfNexIOClient >> listenLoop [
 
-    "Wir laufen, solange der Socket denkt, er sei verbunden"
+    "We'll keep running as long as the socket thinks it's connected."
     [ webSocket isConnected ] whileTrue: [
         [
             | message json |
             
-            "1. Lesen"
+            "1. Read"
             message := webSocket readMessage.
             
-            "2. WICHTIGSTE ZEILE: Wenn message nil ist, ist der Server weg."
-            "Kein Error, sondern ein stilles Ende."
+            "2. MOST IMPORTANT LINE: If message is nil, the server is down."
+            "No error, but a quiet end."
             message ifNil: [ 
                 self close. 
-                ^ self "Prozess beenden!" 
+                ^ self "end process!" 
             ].
 
-            "3. Parsen (Crasht, wenn message nil wäre, daher Schritt 2 wichtig)"
+            "3. Parsen (Crashes if message is nil, therefore step 2 is important)"
             json := NeoJSONReader fromString: message.
             
             "4. Dispatchen"
@@ -165,9 +164,9 @@ TsfNexIOClient >> listenLoop [
                 ifFalse: [ self dispatchIncoming: json ].
 
         ] on: Error do: [ :ex |
-        "WICHTIG: Wir fangen 'Exception' (Alles), nicht nur 'Error'.
-         Wir loggen NICHTs ins Transcript, um Race-Conditions beim Anzeigen zu vermeiden.
-         Wir beenden einfach den Prozess."
+        "IMPORTANT: We catch 'Exception' (everything), not just 'Error'.
+         We do NOT log anything to the transcript to avoid race conditions 
+         when viewing it. We simply terminate the process."
         ^ self
         ]
     ].
@@ -186,7 +185,7 @@ TsfNexIOClient >> logError: aString [
 
 { #category : 'accessing' }
 TsfNexIOClient >> logInfo: aString [
-    "Die Weiche: Haben wir einen Logger? Wenn ja, nutze ihn. Wenn nein, Transcript."
+    "Have we a logger? If yes, use him. If no, Transcript."
 
 	logger ifNotNil: [ 
 		logger info: '[TsfNexIOClient] ', aString 
@@ -247,7 +246,6 @@ TsfNexIOClient >> sendSynchronous: method params: params [
     (semaphore waitTimeoutSeconds: requestTimeout ) ifTrue: [ 
         mutex critical: [ pendingRequests removeKey: id ifAbsent: [] ].
 			TsfNexIOTimeoutError signalForMethod: method params: params
-        "self error: 'Timeout' "
     ].
 
     jsonResponse := (pendingRequests removeKey: id) second.

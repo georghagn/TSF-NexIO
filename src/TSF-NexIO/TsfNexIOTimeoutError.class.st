@@ -20,7 +20,7 @@ TsfNexIOTimeoutError class >> signalForMethod: aMethod params: aDict [
 
 { #category : 'accessing' }
 TsfNexIOTimeoutError >> messageText [
-    "Pharo nutzt dies für den Debugger-Titel"
+    "Pharo uses this for debugger-title"
 
 	^ method 
         ifNotNil: [ 'Timeout waiting for request: ', method asString ]

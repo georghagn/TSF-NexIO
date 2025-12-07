@@ -8,7 +8,8 @@ Class {
 		'socket',
 		'user',
 		'data',
-		'creationTime'
+		'creationTime',
+		'authenticated'
 	],
 	#category : 'TSF-NexIO-Core',
 	#package : 'TSF-NexIO',
@@ -32,13 +33,19 @@ TsfNexIOSession >> initialize [
 
 	super initialize.
 	creationTime := DateAndTime now.
-	data := IdentityDictionary new. "Für sonstige Daten, die keine Instanzvariablen brauchen"
+	data := IdentityDictionary new. "For data, that do not require instance variables"
 ]
 
 { #category : 'testing' }
 TsfNexIOSession >> isAuthenticated [
 
-	^ user notNil.
+	^ authenticated
+]
+
+{ #category : 'accessing' }
+TsfNexIOSession >> isAuthenticated: aBool [
+
+    authenticated := aBool
 ]
 
 { #category : 'accessing' }
