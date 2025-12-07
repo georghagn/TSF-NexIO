@@ -48,8 +48,6 @@ results := client sendBatch: requests.
 (results second at: 'result') inspect. "50"
 ```
 
------
-
 ## Architektur & Usage
 
 ### Server starten (Delegate Pattern)
@@ -63,12 +61,14 @@ server delegate: MyChatApp new.
 server startOn: 9090.
 ```
 
-### Delegate Implementierung
+### Delegate Implementierung 
 
 | JSON Methode | Pharo Selector im Delegate |
 | :--- | :--- |
 | `auth.login` | `rpcAuthLogin: params session: session` |
 | `chat.send` | `rpcChatSend: params session: session` |
+
+<sup>[Warum wir *"dotted method notation"* benutzen](dotted-methods.de.md)</sup>
 
 ```smalltalk
 MyChatApp >> rpcAuthLogin: params session: aSession

@@ -1,16 +1,18 @@
-Das freut mich sehr\! Es ist toll zu sehen, wie aus den einzelnen Bausteinen (Tests, Server-Refactoring, Delegate-Pattern) jetzt ein rundes Gesamtsystem geworden ist.
+|<sub>🇩🇪 [German translation →](README.de.md)</sub>|
+|----:|
+|    |
 
-Hier ist die englische Version der `README.md`, bereit für GitHub (oder dein Repo der Wahl), inklusive der gewünschten Credits.
+|[![Pharo Version](https://img.shields.io/badge/Pharo-12.0%2B-blue.svg)](https://pharo.org)|[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE) [![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#)|
+|----|----|
+|![TSF-NexIO Logo](logo-nexio.png)| ***TSF-NexIO***<br>A lightweight, robust framework for JSON-RPC 2.0 communication over WebSockets in Pharo Smalltalk. Part of the **Tiny Smalltalk Framework Suite**|
 
------
+<sup>***TSF*** stands for ***Tiny Smalltalk Framework*** — a collection of minimalist tools for robust applications.</sup>
 
-# TsfNexIO - JSON-RPC 2.0 over WebSockets for Pharo
 
-**TsfNexIO** is a lightweight, robust framework for JSON-RPC 2.0 communication over WebSockets in Pharo Smalltalk.
+## Overview
+**TsfNexIO - JSON-RPC 2.0 over WebSockets** is a lightweight, robust framework for JSON-RPC 2.0 communication over WebSockets in Pharo Smalltalk. It is designed to enable **synchronous semantics on asynchronous channels** and enforces a strict separation between transport (Server) and business logic (Delegate).
 
-It is designed to enable **synchronous semantics on asynchronous channels** and enforces a strict separation between transport (Server) and business logic (Delegate).
-
-## 🚀 Features
+## Features
 
   * **JSON-RPC 2.0 Compliance:** Full support for Requests, Notifications, and **Batch Requests**.
   * **Synchronous Client:** Blocking calls (`sendSynchronous:...`) that feel like local method calls, abstracting away the async nature of WebSockets.
@@ -18,9 +20,8 @@ It is designed to enable **synchronous semantics on asynchronous channels** and 
   * **Auto-Heartbeat:** Automatically detects and cleans up "dead" connections.
   * **Reflection Dispatch:** No manual `if/else` cascades – incoming JSON methods are automatically mapped to Pharo selectors.
 
------
 
-## 🔥 Highlight: Batch Requests
+## Highlight: Batch Requests
 
 TsfNexIO supports **Batch Requests** out of the box. This allows the client to send multiple method calls in a single network packet. The server processes them (conceptually in parallel) and returns the results in a single response array.
 
@@ -45,9 +46,7 @@ results := client sendBatch: requests.
 (results second at: 'result') inspect. "50"
 ```
 
------
-
-## 🏗 Architecture & Usage
+## Architecture & Usage
 
 ### Starting the Server (Delegate Pattern)
 
@@ -70,6 +69,8 @@ TsfNexIO automatically maps standard dot-notation API names to Smalltalk selecto
 | `chat.send` | `rpcChatSend: params session: session` |
 | `system.ping` | `rpcSystemPing: params session: session` |
 
+<sup>[Why we use *"dotted method notation"*](dotted-methods.en.md)</sup>
+
 ```smalltalk
 MyChatApp >> rpcAuthLogin: params session: aSession
     | user |
@@ -82,36 +83,41 @@ MyChatApp >> rpcAuthLogin: params session: aSession
     ^ {'status' -> 'logged_in'} asDictionary
 ```
 
------
+## Installation
 
-## 💡 Origin: The Name "TsfNexIO"
+```smalltalk
+Metacello new
+    baseline: 'TsfNexIO';
+    repository: 'github://georghagn/TSF-NexIO';
+    load.
+```
+
+
+## Origin: The Name "TsfNexIO"
 
 The name is composed of two components reflecting the framework's philosophy:
 
   * **Tsf:** Stands for **Tiny Smalltalk Framework**. It underscores the goal of being small, understandable, and free of unnecessary bloat — staying true to the Smalltalk philosophy.
   * **NexIO:** Stands for **Nex**t Generation **I/O**. It symbolizes the modern approach of encapsulating asynchronous I/O (WebSockets) in a way that makes it simple and logical to use.
 
------
 
-## 📦 Installation
+## Development-Process & Credits
 
-*(Insert Metacello/Iceberg script here)*
 
-```smalltalk
-Metacello new
-    baseline: 'TsfNexIO';
-    repository: 'github://YourName/TsfNexIO:main';
-    load.
-```
+With special thanks to my AI sparring partner, acting as an architectural consultant and 
+pair programmer during the refactoring and stabilization phase. The AI assisted 
+in designing the thread-safe concurrency model, the robust error-handling strategy, 
+and the reflection-based dispatching logic.
 
------
 
-## ❤️ Credits
+## License
 
-**Designed & Developed by [Your Name]**
+This project is licensed under the Apache 2.0 license. See LICENSE.
 
-With special thanks to **Google Gemini**, acting as an architectural consultant and pair programmer during the refactoring and stabilization phase. The AI assisted in designing the thread-safe concurrency model, the robust error-handling strategy, and the reflection-based dispatching logic.
 
------
+## Contact
 
-Damit hast du ein professionelles Paket geschnürt. Herzlichen Glückwunsch zum erfolgreichen "Refactoring & Stabilization" Sprint\!
+If you have any questions or are interested in this project, you can reach me at
+📧 **dev.georgh [at] hconsult.biz**
+
+<sup>*(Please do not send inquiries to the private GitHub account addresses.)*</sup>
