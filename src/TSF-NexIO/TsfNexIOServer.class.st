@@ -35,7 +35,6 @@ Class {
 		'sessions',
 		'sessionsMutex',
 		'logger',
-		'userRegistry',
 		'heartbeatProcess',
 		'heartbeatInterval',
 		'waitTimeout',
@@ -67,13 +66,29 @@ TsfNexIOServer class >> defaultWaitTimeout [
     ^ 60 seconds
 ]
 
-{ #category : 'actions' }
-TsfNexIOServer >> broadcast: method params: params [
-    | json |
-
-    json := TsfNexIOProtocol createNotification: method params: params.
-    sessionsMutex critical: [
-        sessions do: [ :ws | [ ws sendMessage: json ] on: Error do: [ nil ] ]
+{ #category : 'communication' }
+TsfNexIOServer >> broadcastNotification: method params: params [
+    "sends a notification to ALL connected clients"
+    
+    | payload jsonString currentSessions |
+    
+    "1. build payload via protocol"
+    payload := TsfNexIOProtocol createNotification: method params: params.
+    jsonString := NeoJSONWriter toString: payload.
+    
+    "2. Copy list (thread-safe) so we can immediately release the monitor again."
+    currentSessions := sessionsMutex critical: [ sessions copy ].
+    
+    "3. Send (outside the monitor)"
+    currentSessions do: [ :session | 
+        (session socket isNotNil and: [ session socket isConnected ])
+            ifTrue: [ 
+                [ session socket sendMessage: jsonString ] 
+                    on: Error do: [ :ex | 
+                        "logging, but but continue broadcast"
+                        Transcript show: 'Broadcast fail for one client'; cr.
+                    ]
+            ]
     ].
 ]
 
@@ -97,35 +112,33 @@ TsfNexIOServer >> delegate: anObject [
 TsfNexIOServer >> handleConnection: webSocket [
     | session |
 
-    ". Session Objekt erstellen"
+    "1. create session object"
     session := TsfNexIOSession new.
     session socket: webSocket.
     
-    "2. Session registrieren (Thread-Safe)"
+    "2. register session (Thread-Safe)"
     sessionsMutex critical: [ 
         sessions add: session 
     ].
 
-    "clientsMutex critical: [ clients add: webSocket ]."
-
-    "3. Loop starten - mit Ensure Block für Cleanup"
+    "3. start loop - with Ensure block for cleanup"
     [
-        "Der Loop läuft solange die Verbindung steht"
+        "The loop runs as long as the connection is active."
         [ webSocket isConnected ] whileTrue: [
             [
-                "Hier knallt es, wenn der Test endet (tearDown)"
+                "Things will get loud when the test ends. (tearDown)"
                 self readAndDispatch: webSocket session: session.
             ] on: ConnectionClosed, PrimitiveFailed do: [ :ex |
-                "Das ist normal: Client ist weg."
+                "This is normal: client is gone."
                 self logInfo: 'Server: Client disconnected (', ex description, ')'.
                 
-                "Ganz wichtig: ^self beendet die Methode und springt ins ensure:"
+                "Very important: ^self trminates the method and jumps to ensure:"
                 ^ self. 
             ]
         ]
     ] ensure: [ 
-        "4. Cleanup: Egal warum der Loop endet (Fehler, Close, Timeout),
-         wir entfernen die Session aus der Liste."
+        "4. Cleanup: Regardless of why the loop ends (error, close, timeout),
+         we remove the session from the list."
         sessionsMutex critical: [ 
             sessions remove: session ifAbsent: [].
            " self unregisterUser: session user."
@@ -143,8 +156,6 @@ TsfNexIOServer >> initialize [
 	sessions := Set new.
 	sessionsMutex := Monitor new.
 
-	userRegistry := Dictionary new.
-	
     "Lade Defaults"
     port := self class defaultPort .
     heartbeatInterval := self class defaultHeartbeatInterval.
@@ -231,7 +242,7 @@ TsfNexIOServer >> processRequest: json session: session [
 
 { #category : 'actions' }
 TsfNexIOServer >> pruneDeadConnections [
-	
+
 	sessionsMutex critical: [
 		sessions copy do: [ :session |  "Copy verwenden, um Modifikationen während der Iteration zu vermeiden"
 			[
@@ -245,7 +256,6 @@ TsfNexIOServer >> pruneDeadConnections [
 			] on: Error do: [ :ex |
 				 "Heartbeat failure -> session is probably gone"
 				self logInfo: 'Heartbeat: Found dead connection. Closing...'.
-				"self unregisterUser: session."
 				session socket close.
 			]
 		].
@@ -281,37 +291,6 @@ TsfNexIOServer >> readAndDispatch: webSocket session: session [
             ]
         ].
     ].
-
-]
-
-{ #category : 'actions' }
-TsfNexIOServer >> registerUser: username on: webSocket [
-
-	sessionsMutex critical: [
-		userRegistry at: username put: webSocket.
-		self logInfo: 'Registered user: ', username.
-	].
-
-
-]
-
-{ #category : 'actions' }
-TsfNexIOServer >> send: method params: params toUser: username [
-	| socket json |
-
-	sessionsMutex critical: [
-		socket := userRegistry at: username ifAbsent: [ 
-			self logInfo: 'User not found: ', username. 
-			^ self 
-		].
-	].
-    
-	json := TsfNexIOProtocol createNotification: method params: params.
-
-	[ socket sendMessage: json ] on: Error do: [ :ex |
-		"Wenn senden fehlschlägt, aufräumen"
-		self unregisterUser: username. 
-	].
 
 ]
 
@@ -383,18 +362,43 @@ TsfNexIOServer >> stopHeartbeat [
 ]
 
 { #category : 'actions' }
-TsfNexIOServer >> unregisterUser: username [
+TsfNexIOServer >> whisper: aDictionary toUser: username [
+    "Sends a message ONLY to a specific user"
+    
+    | targetSession jsonString |
+    
+    sessionsMutex critical: [
+        "search session of this specific user"
+        targetSession := sessions 
+            detect: [ :s | s user = username ] 
+            ifNone: [ ^ self ]. "User not found -> stop"
+    ].
 
-	username ifNil: [ ^ self ].
-	sessionsMutex critical: [
-		userRegistry removeKey: username ifAbsent: [].
-		self logInfo: 'Unregistered user: ', username.
-	].
-
+    jsonString := NeoJSONWriter toString: aDictionary.
+    
+    (targetSession socket isNotNil and: [ targetSession socket isConnected ])
+        ifTrue: [ targetSession socket sendMessage: jsonString ]
 ]
 
-{ #category : 'accessing' }
-TsfNexIOServer >> userRegistry [
+{ #category : 'communication' }
+TsfNexIOServer >> whisperNotification: method params: params toUser: username [
+    "Sends a notification ONLY to a specific user"
+    
+    | payload jsonString targetSession |
+    
+    payload := TsfNexIOProtocol createNotification: method params: params.
+    jsonString := NeoJSONWriter toString: payload.
+    
+    "1. search target-session (Thread-Safe)"
+    sessionsMutex critical: [
+        targetSession := sessions 
+            detect: [ :s | s user = username ] 
+            ifNone: [ ^ self ]. "User nicht gefunden -> Abbruch"
+    ].
 
-	^ userRegistry 
+    "2. Send (outside the monitor"
+    (targetSession socket isNotNil and: [ targetSession socket isConnected ])
+        ifTrue: [ 
+            [ targetSession socket sendMessage: jsonString ] on: Error do: []
+        ]
 ]
