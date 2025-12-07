@@ -39,7 +39,7 @@ BaselineOfTsfNexIO >> defineGroups: spec [
 
 	spec 
 		group: 'core' with: #('TSF-NexIO');
-		group: 'tests' with: #('TSF-NexIOr-Tests');
+		group: 'tests' with: #('TSF-NexIO-Tests');
 		group: 'default' with: #('core' 'tests').
 		
 ]
