@@ -83,7 +83,7 @@ MyChatApp >> rpcAuthLogin: params session: aSession
 ```smalltalk
 Metacello new
     baseline: 'TsfNexIO';
-    repository: 'github://georghagn/TSF-NexIO';
+    repository: 'github://georghagn/TSF-NexIO:main';
     load.
 ```
 
