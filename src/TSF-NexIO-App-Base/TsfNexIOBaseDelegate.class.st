@@ -1,3 +1,12 @@
+"
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I am an abstract Delegate Object and implement some base methods for convenience. App-Delegates kann subclass me. 
+See: TsfNexIOAuthTestDelegate
+
+"
 Class {
 	#name : 'TsfNexIOBaseDelegate',
 	#superclass : 'Object',

@@ -1,5 +1,9 @@
 "
-I am a session object
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I am a session object and store user and socket informations
 "
 Class {
 	#name : 'TsfNexIOSession',

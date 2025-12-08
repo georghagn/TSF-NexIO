@@ -1,4 +1,8 @@
 "
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
 I am the core server for the TsfNexIO JSON-RPC framework.
 I manage the WebSocket lifecycle, maintain active client sessions, and route incoming requests to a delegate.
 

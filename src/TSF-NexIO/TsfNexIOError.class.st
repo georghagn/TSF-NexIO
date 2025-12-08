@@ -1,5 +1,9 @@
 "
-I handle Json RPC Errors-Messages
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I am a aubclass from Error and I process TsfNexIO errorss
 "
 Class {
 	#name : 'TsfNexIOError',

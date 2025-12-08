@@ -1,4 +1,8 @@
 "
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
 I define the Json RPC Messages . I have only class methods
 "
 Class {
