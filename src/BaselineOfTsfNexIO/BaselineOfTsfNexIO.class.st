@@ -10,10 +10,36 @@ BaselineOfTsfNexIO >> baseline: spec [
     <baseline>
 
 	spec for: #common do: [
-		self defineDependencies: spec.
-		self definePackages: spec.
-		self defineGroups: spec 
+
+		"Abhängigkeit zu Zinc"
+		spec baseline: 'ZincHTTPComponents' with: [ 
+			spec 
+				repository: 'github://svenvc/zinc/repository';
+				"WICHTIG: Wir laden explizit NUR die WebSocket Gruppe.
+				 Metacello versucht dann oft, den Core in Ruhe zu lassen,
+				 wenn er schon da ist."
+				loads: #('WebSocket') 
+		].
+            
+		"Abhängigkeit zu NeoJSON"
+		spec baseline: 'NeoJSON' with: [ spec repository: 'github://svenvc/NeoJSON/repository'	 ].
+
+		"Packages"
+		spec 
+			package: 'TSF-NexIO';
+			package: 'TSF-NexIO-Tests' with: [ spec requires: #('TSF-NexIO') ];
+			package: 'TSF-NexIO-App-Base'.
+		
+		"Groups "
+		spec 
+			group: 'core' with: #('TSF-NexIO');
+			group: 'tests' with: #('TSF-NexIO-Tests');
+			group: 'delegate' with: #('TSF-NexIO-App-Base');
+			group: 'default' with: #('core' 'tests' 'delegate').
+		
 	].
+
+
 ]
 
 { #category : 'baselines - dependencies' }
