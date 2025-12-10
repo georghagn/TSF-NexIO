@@ -40,7 +40,8 @@ BaselineOfTsfNexIO >> defineGroups: spec [
 	spec 
 		group: 'core' with: #('TSF-NexIO');
 		group: 'tests' with: #('TSF-NexIO-Tests');
-		group: 'default' with: #('core' 'tests').
+		group: 'delegate' with: #('TSF-NexIO-App-Base');
+		group: 'default' with: #('core' 'tests' 'delegate').
 		
 ]
 
@@ -49,6 +50,7 @@ BaselineOfTsfNexIO >> definePackages: spec [
 
 	spec 
 		package: 'TSF-NexIO';
-		package: 'TSF-NexIO-Tests' with: [ spec requires: #('TSF-NexIO') ].
+		package: 'TSF-NexIO-Tests' with: [ spec requires: #('TSF-NexIO') ];
+		package: 'TSF-NexIO-App-Base'.
 
 ]
