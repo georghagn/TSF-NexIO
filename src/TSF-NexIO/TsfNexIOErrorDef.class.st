@@ -1,5 +1,9 @@
 "
-I am an ErrorCode Object
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I am an ErrorCode Definition Object. I handle RPC 2.0 Errors
 "
 Class {
 	#name : 'TsfNexIOErrorDef',

@@ -1,5 +1,9 @@
 "
-I handle RPC 2.0 Error Codes
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I handle RPC 2.0 Error Codes. I have only class methods
 "
 Class {
 	#name : 'TsfNexIOConstants',

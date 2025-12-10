@@ -1,3 +1,11 @@
+"
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
+I am a subclass of Error. I handle timeout errors
+
+"
 Class {
 	#name : 'TsfNexIOTimeoutError',
 	#superclass : 'Error',
