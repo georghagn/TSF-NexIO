@@ -1,5 +1,8 @@
 "
-I am a Demo / Test App. for usage: see Tests
+Copyright 2025 Georg Hagn
+SPDX-License-Identifier: Apache-2.0
+
+
 "
 Class {
 	#name : 'TsfNexIOTestApp',
@@ -15,47 +18,29 @@ Class {
 { #category : 'accessing' }
 TsfNexIOTestApp >> lastReceivedSession [
 
-	^ lastReceivedSession.
+	^ lastReceivedSession
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'rpc - methods' }
 TsfNexIOTestApp >> rpcCrash: params session: session [
 
 	Error signal: 'Boom'.
+
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'rpc - methods' }
 TsfNexIOTestApp >> rpcEcho: params session: session [
 
 	lastReceivedSession := session. 
 	^ params.
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'rpc - methods' }
 TsfNexIOTestApp >> rpcLogin: params session: session [
 
 	session user: (params at: 'user').
-	server registerUser: (params at: 'user') on: session socket.
 	^ 'OK'.
-]
-
-{ #category : 'as yet unclassified' }
-TsfNexIOTestApp >> rpcWhisper: params session: session [
-    | recipient text |
-    
-    "Check: Is it allowed to whisper?"
-    session isAuthenticated ifFalse: [ Error signal: 'You must be logged in!' ].
-    
-    recipient := params at: 'to'.
-    text := params at: 'text'.
-    
-    server 
-        send: 'chatMessage' 
-        params: { 'from' -> session user. 'text' -> text } asDictionary 
-        toUser: recipient.
-        
-    ^ 'Sent'.
-
+	
 ]
 
 { #category : 'accessing' }

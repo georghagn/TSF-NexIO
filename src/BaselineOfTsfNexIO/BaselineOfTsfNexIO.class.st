@@ -30,7 +30,9 @@ BaselineOfTsfNexIO >> defineDependencies: spec [
             
        "Abhängigkeit zu NeoJSON"
 	spec baseline: 'NeoJSON'
-		with: [ spec repository: 'github://svenvc/NeoJSON/repository' ].
+		with: [ spec repository: 'github://svenvc/NeoJSON/repository'	]
+
+		
 
 ]
 

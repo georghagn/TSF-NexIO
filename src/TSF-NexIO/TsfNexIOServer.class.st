@@ -188,6 +188,12 @@ TsfNexIOServer >> logInfo: aString [
 	]
 ]
 
+{ #category : 'accessing' }
+TsfNexIOServer >> logger: aLogger [
+
+	logger := aLogger
+]
+
 { #category : 'actions' }
 TsfNexIOServer >> processBatch: batchArray session: session [
     | responses |
