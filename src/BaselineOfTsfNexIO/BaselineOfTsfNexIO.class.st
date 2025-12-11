@@ -13,7 +13,8 @@ BaselineOfTsfNexIO >> baseline: spec [
 
 		"Zinc (nur WebSocket nachladen)"
 		spec baseline: 'ZincHTTPComponents' with: [
-			spec repository: 'github://svenvc/zinc/repository' ].
+			spec repository: 'github://svenvc/zinc/repository';
+			loads: #('WebSocket')  ].
 
 		"NeoJSON"
 		spec baseline: 'NeoJSON' with: [
@@ -35,13 +36,9 @@ BaselineOfTsfNexIO >> baseline: spec [
 		spec group: 'tests'    with: #('TSF-NexIO-Tests').
 		spec group: 'delegate' with: #('TSF-NexIO-App-Base').
 
-		"Diese Gruppe lädt NUR WebSocket aus Zinc"
-		spec group: 'websocket' with: #('WebSocket').
-
 		"Standardgruppe → lädt alles + WebSocket"
 		spec group: 'default'
-			with: #('core' 'tests' 'delegate' 'websocket').
+			with: #('core' 'tests' 'delegate' 'ZincHTTPComponents').
 
 	].
-
 ]
