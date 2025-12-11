@@ -36,7 +36,7 @@ BaselineOfTsfNexIO >> baseline: spec [
 		spec group: 'delegate' with: #('TSF-NexIO-App-Base').
 
 		"Diese Gruppe lädt NUR WebSocket aus Zinc"
-		spec group: 'websocket' with: #('Zinc-WebSocket').
+		spec group: 'websocket' with: #('WebSocket').
 
 		"Standardgruppe → lädt alles + WebSocket"
 		spec group: 'default'
